@@ -1,21 +1,24 @@
 ActiveAdmin.dialogMassFieldsUpdate = function(message, inputs, callback){
   let html = `<form id="dialog_confirm" title="${message}"><div style="padding-right:4px;padding-left:1px;margin-right:2px"><ul>`;
+  let extra_attr = ''
   for (let name in inputs) {
     var elem, opts, wrapper;
     let type = inputs[name];
     if (/^(datepicker|checkbox|text)$/.test(type)) {
       wrapper = 'input';
     } else if ($.isArray(type)) {
-      [wrapper, elem, opts, type] = Array.from(['select', 'option', type, '']);
+      //TODO: Add select/multipleselect types instead using extra_attr
+      [wrapper, elem, opts, type, extra_attr] = Array.from(['select', 'option', type, '', 'multiple']);
     } else {
       throw new Error(`Unsupported input type: {${name}: ${type}}`);
     }
 
     let klass = type === 'datepicker' ? type : '';
+
     html += `<li>
 <input type='checkbox' class='mass_update_protect_fild_flag' value='Y' id="mass_update_dialog_${name}" />
 <label for="mass_update_dialog_${name}"> ${name.charAt(0).toUpperCase() + name.slice(1)}</label>
-<${wrapper} name="${name}" class="${klass}" type="${type}" disabled="disabled">` +
+<${wrapper} name="${name}" class="${klass}" type="${type}" disabled="disabled" ${extra_attr}>` +
         (opts ? ((() => {
           const result = [];
 
@@ -62,7 +65,7 @@ ActiveAdmin.dialogMassFieldsUpdate = function(message, inputs, callback){
     buttons: {
       OK(e){
         $(e.target).closest('.ui-dialog-buttonset').html('<span>Processing. Please wait...</span>');
-        return callback($(this).serializeObject());
+        return callback(parseParams(new URLSearchParams(new FormData(this)).toString()))
       },
       Cancel() {
         $('.mass_update_protect_fild_flag').off('change');
@@ -70,4 +73,19 @@ ActiveAdmin.dialogMassFieldsUpdate = function(message, inputs, callback){
       }
     }
   });
+
+  function parseParams(params) {
+    const output = {};
+    const searchParams = new URLSearchParams(params);
+
+    // Set will return only unique keys()
+    new Set([...searchParams.keys()])
+        .forEach(key => {
+          output[key] = searchParams.getAll(key).length > 1 ?
+              searchParams.getAll(key) : // get multiple values
+              searchParams.get(key); // get single value
+        });
+
+    return output;
+  }
 };
